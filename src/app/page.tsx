@@ -50,7 +50,7 @@ export default function Home() {
               <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl max-w-md backdrop-blur-sm">
                 <h3 className="text-red-400 font-bold text-lg mb-2">Trust Score Too Low</h3>
                 <p className="text-cream/80 text-sm mb-4">
-                  Your wallet ({address?.slice(0,6)}...{address?.slice(-4)}) trust score is too low to join SafePot.
+                  Your wallet trust score is too low to use SafePot.
                 </p>
                 <a 
                   href="https://arc-grade.vercel.app" 

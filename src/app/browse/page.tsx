@@ -39,7 +39,7 @@ export default function BrowseGroups() {
       return;
     }
     if (!isTrusted) {
-      alert("Your wallet trust score is too low to join SafePot. Improve your score at arc-grade.vercel.app");
+      alert("Your wallet trust score is too low to use SafePot. Improve your score at arc-grade.vercel.app");
       return;
     }
     alert(`Trigger MetaMask transaction to join group ${groupId}`);
@@ -90,7 +90,7 @@ export default function BrowseGroups() {
         <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl mb-8 flex items-center gap-3">
           <ShieldAlert className="text-red-500 w-5 h-5 flex-shrink-0" />
           <p className="text-sm text-red-200">
-            Your wallet trust score is too low to join groups. <a href="https://arc-grade.vercel.app" target="_blank" rel="noreferrer" className="underline font-bold">Improve it here</a>.
+            Your wallet trust score is too low to use SafePot. <a href="https://arc-grade.vercel.app" target="_blank" rel="noreferrer" className="underline font-bold">Improve your score at arc-grade.vercel.app</a>
           </p>
         </div>
       )}

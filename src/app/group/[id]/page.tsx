@@ -28,7 +28,7 @@ const MOCK_GROUP = {
 
 export default function GroupDetail() {
   const { id } = useParams();
-  const { isConnected, address } = useWeb3();
+  const { isConnected, isTrusted, address } = useWeb3();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -39,6 +39,10 @@ export default function GroupDetail() {
   const progressPercent = (paidMembersCount / MOCK_GROUP.members.length) * 100;
 
   const handleContribute = () => {
+    if (!isTrusted) {
+      alert("Your wallet trust score is too low to use SafePot. Improve your score at arc-grade.vercel.app");
+      return;
+    }
     alert("Trigger MetaMask to approve and transfer USDC contribution.");
   };
 

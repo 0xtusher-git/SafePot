@@ -35,7 +35,7 @@ export default function CreateGroup() {
         <ShieldAlert className="w-16 h-16 text-red-500 mb-4" />
         <h2 className="text-2xl font-bold mb-2">Trust Score Too Low</h2>
         <p className="text-cream/70 mb-6 max-w-md">
-          Only trusted wallets can create new SafePot groups. Please improve your ArcGrade score to continue.
+          Your wallet trust score is too low to use SafePot. Improve your score at arc-grade.vercel.app
         </p>
         <a 
           href="https://arc-grade.vercel.app" 

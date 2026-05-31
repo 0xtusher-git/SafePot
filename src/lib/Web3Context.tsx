@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { BrowserProvider, Signer } from "ethers";
-import { checkIsTrusted, getTrustScore } from "./arcGrade";
+import { getTrustScore } from "./arcGrade";
 
 interface Web3ContextType {
   address: string | null;
@@ -61,10 +61,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   };
 
   const fetchTrustData = async (userAddress: string) => {
-    const trusted = await checkIsTrusted(userAddress);
     const score = await getTrustScore(userAddress);
-    setIsTrusted(trusted);
     setTrustScore(score);
+    setIsTrusted(score !== null && score >= 50);
   };
 
   const connect = async () => {
