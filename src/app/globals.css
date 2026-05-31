@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0B281B; /* deep forest green */
+  --foreground: #FFFDD0; /* soft cream */
+}
+
+@theme inline {
+  --color-forest: #0B281B;
+  --color-teal: #0A423A;
+  --color-gold: #F4C430;
+  --color-cream: #FFFDD0;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: linear-gradient(135deg, var(--color-forest) 0%, var(--color-teal) 100%);
+  color: var(--color-cream);
+  min-height: 100vh;
+  font-family: var(--font-sans), sans-serif;
+}
