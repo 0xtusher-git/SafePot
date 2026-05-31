@@ -1,0 +1,6 @@
+contracts/
+scripts/
+ignition/
+hardhat.config.ts
+cache/
+artifacts/
