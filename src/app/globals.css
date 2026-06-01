@@ -1,24 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0B281B; /* deep forest green */
-  --foreground: #FFFDD0; /* soft cream */
+  --background: #F9FAFB; /* light gray/white */
+  --foreground: #111827; /* dark text */
 }
 
 @theme inline {
-  --color-forest: #0B281B;
-  --color-teal: #0A423A;
+  --color-forest: #1B4332;
+  --color-teal: #2D6A4F;
   --color-gold: #F4C430;
   --color-cream: #FFFDD0;
-  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
 }
 
 body {
-  background: linear-gradient(135deg, var(--color-forest) 0%, var(--color-teal) 100%);
-  color: var(--color-cream);
+  background: var(--background);
+  color: var(--foreground);
   min-height: 100vh;
   font-family: var(--font-sans), sans-serif;
+}
+
+@layer utilities {
+  .animate-pulse-ring::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid theme('colors.green.500');
+    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
 }

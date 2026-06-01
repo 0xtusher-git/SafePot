@@ -8,45 +8,44 @@ export function Navbar() {
   const { address, isConnected, connect, disconnect, isTrusted } = useWeb3();
 
   return (
-    <nav className="w-full py-4 px-6 md:px-12 flex justify-between items-center border-b border-teal/30 bg-forest/80 backdrop-blur-md sticky top-0 z-50">
-      <Link href="/" className="flex items-center gap-2">
-        <ShieldCheck className="text-gold w-8 h-8" />
-        <span className="text-2xl font-bold tracking-tight text-white">
+    <nav className="w-full py-4 px-6 md:px-12 flex justify-between items-center border-b border-gray-100 bg-white/90 backdrop-blur-md sticky top-0 z-50 shadow-sm transition-all">
+      <Link href="/" className="flex items-center gap-2 group">
+        <ShieldCheck className="text-forest w-8 h-8 group-hover:scale-110 transition-transform" />
+        <span className="text-2xl font-bold tracking-tight text-forest">
           Safe<span className="text-gold">Pot</span>
         </span>
       </Link>
 
       <div className="flex items-center gap-6">
-        <Link href="/browse" className="text-cream/80 hover:text-white transition-colors">
+        <Link href="/browse" className="text-gray-600 font-medium hover:text-forest transition-colors">
           Browse Groups
         </Link>
         {isConnected && (
-          <Link href="/dashboard" className="text-cream/80 hover:text-white transition-colors">
+          <Link href="/dashboard" className="text-gray-600 font-medium hover:text-forest transition-colors">
             Dashboard
           </Link>
         )}
 
         {isConnected ? (
           <div className="flex items-center gap-3">
-            {isTrusted && (
-              <span className="flex items-center gap-1 text-xs font-semibold bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">
-                <ShieldCheck w-3 h-3 /> Trusted
+            {isTrusted ? (
+              <span className="flex items-center gap-1 text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-200 shadow-sm">
+                <ShieldCheck className="w-3.5 h-3.5" /> Trusted
               </span>
-            )}
-            {!isTrusted && (
-              <span className="flex items-center gap-1 text-xs font-semibold bg-red-500/20 text-red-400 px-2 py-1 rounded-full border border-red-500/30">
+            ) : (
+              <span className="flex items-center gap-1 text-xs font-bold bg-red-50 text-red-700 px-3 py-1.5 rounded-full border border-red-200 shadow-sm">
                 Untrusted
               </span>
             )}
             <div className="group relative">
-              <button className="flex items-center gap-2 bg-teal hover:bg-teal/80 text-white px-4 py-2 rounded-full transition-all border border-teal/50">
-                <Wallet className="w-4 h-4" />
+              <button className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-forest font-semibold px-4 py-2 rounded-full transition-all border border-gray-200 shadow-sm hover:shadow-md">
+                <Wallet className="w-4 h-4 text-gold" />
                 {address?.slice(0, 6)}...{address?.slice(-4)}
               </button>
-              <div className="absolute right-0 top-full mt-2 hidden group-hover:block w-32">
+              <div className="absolute right-0 top-full mt-2 hidden group-hover:block w-36 origin-top-right">
                 <button
                   onClick={disconnect}
-                  className="w-full text-left px-4 py-2 bg-red-500/90 hover:bg-red-500 text-white text-sm rounded-lg shadow-xl"
+                  className="w-full text-left px-4 py-2 bg-white hover:bg-red-50 hover:text-red-600 text-gray-700 font-medium text-sm rounded-lg shadow-xl border border-gray-100 transition-colors"
                 >
                   Disconnect
                 </button>
@@ -56,9 +55,9 @@ export function Navbar() {
         ) : (
           <button
             onClick={connect}
-            className="bg-gold hover:bg-yellow-500 text-forest font-bold px-6 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(244,196,48,0.3)] hover:shadow-[0_0_25px_rgba(244,196,48,0.5)] flex items-center gap-2"
+            className="bg-forest hover:bg-forest/90 text-white font-bold px-6 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
           >
-            <Wallet className="w-4 h-4" /> Connect Wallet
+            <Wallet className="w-4 h-4 text-gold" /> Connect Wallet
           </button>
         )}
       </div>

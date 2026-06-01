@@ -3,93 +3,127 @@
 import Link from "next/link";
 import { useWeb3 } from "@/lib/Web3Context";
 import { ShieldCheck, Users, Coins, ArrowRight } from "lucide-react";
+import CountUp from "react-countup";
+import { motion } from "framer-motion";
 
 export default function Home() {
   const { isConnected, connect, isTrusted, address } = useWeb3();
 
+  const fadeUpVariant = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="flex-1 flex flex-col items-center w-full">
+    <div className="flex-1 flex flex-col items-center w-full bg-light">
       {/* Hero Section */}
       <section className="w-full px-6 py-24 flex flex-col items-center text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-teal/30 rounded-full blur-[120px] -z-10" />
+        {/* Clean background elements */}
+        <div className="absolute top-0 inset-x-0 h-full bg-gradient-to-b from-green-50/50 to-transparent -z-10" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-400/5 rounded-full blur-[100px] -z-10" />
         
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-forest/50 border border-gold/30 mb-8 backdrop-blur-sm">
-          <ShieldCheck className="w-5 h-5 text-gold" />
-          <span className="text-sm font-medium text-cream/90">Powered by ArcGrade Trust Protocol</span>
-        </div>
+        <motion.div 
+          initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 shadow-sm mb-8"
+        >
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse-ring relative z-10" />
+          <ShieldCheck className="w-4 h-4 text-green-600" />
+          <span className="text-sm font-semibold text-gray-700">Powered by ArcGrade Trust Protocol</span>
+        </motion.div>
 
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 max-w-4xl text-transparent bg-clip-text bg-gradient-to-br from-white via-cream to-gold">
-          Save Together. <br className="hidden md:block" /> Trust On-Chain.
-        </h1>
+        <motion.h1 
+          initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 max-w-4xl text-forest"
+        >
+          Save Together. <br className="hidden md:block" /> Win Together.
+        </motion.h1>
         
-        <p className="text-xl md:text-2xl text-cream/80 max-w-2xl mb-12 font-light">
-          Group savings powered by Arc Testnet. Only verified, trusted wallets allowed.
-        </p>
+        <motion.p 
+          initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-xl md:text-2xl text-gray-600 max-w-2xl mb-12 font-medium"
+        >
+          Trustless group savings on Arc Testnet powered by USDC.
+        </motion.p>
 
-        {!isConnected ? (
-          <button 
-            onClick={connect}
-            className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-forest bg-gold rounded-full overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(244,196,48,0.4)]"
-          >
-            <span className="relative z-10 flex items-center gap-2 text-lg">
-              Connect Wallet to Join <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
-          </button>
-        ) : (
-          <div className="flex flex-col items-center gap-4">
-            {isTrusted ? (
-              <Link 
-                href="/dashboard"
-                className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white bg-teal rounded-full overflow-hidden transition-all hover:scale-105 hover:bg-teal/80 border border-teal-light"
-              >
-                <span className="relative z-10 flex items-center gap-2 text-lg">
-                  Go to Dashboard <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
-            ) : (
-              <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl max-w-md backdrop-blur-sm">
-                <h3 className="text-red-400 font-bold text-lg mb-2">Trust Score Too Low</h3>
-                <p className="text-cream/80 text-sm mb-4">
-                  Your wallet trust score is too low to use SafePot.
-                </p>
-                <a 
-                  href="https://arc-grade.vercel.app" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-block px-4 py-2 bg-red-500/20 text-red-300 rounded-full text-sm hover:bg-red-500/30 transition-colors"
+        <motion.div initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ duration: 0.5, delay: 0.3 }}>
+          {!isConnected ? (
+            <button 
+              onClick={connect}
+              className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white bg-forest rounded-full overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/20"
+            >
+              <span className="relative z-10 flex items-center gap-2 text-lg">
+                Connect Wallet to Join <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              {isTrusted ? (
+                <Link 
+                  href="/dashboard"
+                  className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-forest bg-gold rounded-full overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-gold/30"
                 >
-                  Improve your score
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+                  <span className="relative z-10 flex items-center gap-2 text-lg">
+                    Go to Dashboard <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </Link>
+              ) : (
+                <div className="bg-red-50 border border-red-100 p-6 rounded-2xl max-w-md shadow-sm">
+                  <h3 className="text-red-700 font-bold text-lg mb-2">Trust Score Too Low</h3>
+                  <p className="text-red-600/80 text-sm mb-4">
+                    Your wallet trust score is too low to use SafePot.
+                  </p>
+                  <a 
+                    href="https://arc-grade.vercel.app" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block px-5 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded-full text-sm transition-colors"
+                  >
+                    Improve your score
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
       </section>
 
       {/* Stats Section */}
-      <section className="w-full max-w-6xl mx-auto px-6 py-12">
+      <section className="w-full max-w-6xl mx-auto px-6 py-12 relative z-10 -mt-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { label: "Total Groups", value: "142", icon: Users },
-            { label: "Total USDC Saved", value: "$45,200", icon: Coins },
-            { label: "Total Members", value: "850+", icon: ShieldCheck },
+            { label: "Total Groups", value: 142, prefix: "", suffix: "", icon: Users },
+            { label: "Total USDC Saved", value: 45200, prefix: "$", suffix: "", icon: Coins },
+            { label: "Total Members", value: 850, prefix: "", suffix: "+", icon: ShieldCheck },
           ].map((stat, i) => (
-            <div key={i} className="bg-forest/40 border border-teal/40 rounded-3xl p-8 flex flex-col items-center text-center backdrop-blur-sm hover:bg-forest/60 transition-colors">
-              <div className="w-16 h-16 rounded-full bg-teal/30 flex items-center justify-center mb-4">
-                <stat.icon className="w-8 h-8 text-gold" />
+            <motion.div 
+              key={i} 
+              initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUpVariant} transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col items-center text-center shadow-lg hover:shadow-xl transition-shadow group hover:-translate-y-1 duration-300"
+            >
+              <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <stat.icon className="w-8 h-8 text-forest" />
               </div>
-              <h3 className="text-4xl font-bold text-white mb-2">{stat.value}</h3>
-              <p className="text-cream/60 font-medium uppercase tracking-wider text-sm">{stat.label}</p>
-            </div>
+              <h3 className="text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
+                {stat.prefix}
+                <CountUp end={stat.value} duration={2.5} separator="," />
+                {stat.suffix}
+              </h3>
+              <p className="text-gray-500 font-bold uppercase tracking-wider text-xs">{stat.label}</p>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* How it Works */}
       <section className="w-full max-w-5xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-3xl md:text-5xl font-bold mb-16 text-white">How SafePot Works</h2>
+        <motion.h2 
+          initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUpVariant}
+          className="text-3xl md:text-5xl font-bold mb-16 text-gray-900"
+        >
+          How SafePot Works
+        </motion.h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-          <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-teal/0 via-gold/30 to-teal/0 z-0"></div>
+          <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-transparent via-gray-200 to-transparent z-0"></div>
           
           {[
             {
@@ -108,13 +142,17 @@ export default function Home() {
               desc: "Contribute USDC every round. One member gets the full pot each round, rotating until everyone wins.",
             }
           ].map((item, i) => (
-            <div key={i} className="relative z-10 flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-forest border-4 border-teal flex items-center justify-center text-3xl font-bold text-gold mb-6 shadow-xl">
+            <motion.div 
+              key={i} 
+              initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUpVariant} transition={{ duration: 0.5, delay: i * 0.2 }}
+              className="relative z-10 flex flex-col items-center group"
+            >
+              <div className="w-24 h-24 rounded-full bg-white border-4 border-gray-100 flex items-center justify-center text-3xl font-bold text-forest mb-6 shadow-sm group-hover:border-gold group-hover:scale-110 transition-all duration-300">
                 {item.step}
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4">{item.title}</h3>
-              <p className="text-cream/70 leading-relaxed">{item.desc}</p>
-            </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">{item.title}</h3>
+              <p className="text-gray-600 leading-relaxed font-medium">{item.desc}</p>
+            </motion.div>
           ))}
         </div>
       </section>
