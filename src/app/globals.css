@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F9FAFB; /* light gray/white */
-  --foreground: #111827; /* dark text */
+  --background: #F9FAFB;
+  --foreground: #111827;
 }
 
 @theme inline {
@@ -10,6 +10,7 @@
   --color-teal: #2D6A4F;
   --color-gold: #F4C430;
   --color-cream: #FFFDD0;
+  --color-light: #F9FAFB;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -22,13 +23,22 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
+/* Pulsing live dot */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
 @layer utilities {
-  .animate-pulse-ring::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 2px solid theme('colors.green.500');
-    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  .animate-live {
+    animation: pulse-live 2s ease-in-out infinite;
+  }
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
   }
 }
