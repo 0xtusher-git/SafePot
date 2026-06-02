@@ -18,7 +18,7 @@ interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
-const ARC_TESTNET_CHAIN_ID = "0x4ce942"; // 5042002 in hex
+const ARC_TESTNET_CHAIN_ID = "0x4cef52"; // 5042002 in hex
 
 export function Web3Provider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
                   chainId: ARC_TESTNET_CHAIN_ID,
                   chainName: "Arc Testnet",
                   rpcUrls: ["https://rpc.testnet.arc.network"],
-                  nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+                  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 6 },
                 },
               ],
             });
