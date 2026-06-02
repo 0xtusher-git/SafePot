@@ -44,14 +44,18 @@ export default function CreateGroup() {
       const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
       const safePot = new Contract(SAFEPOT_ADDRESS, SAFEPOT_ABI, signer);
 
+      // Fetch gas price (native token is USDC on Arc Testnet)
+      const feeData = await signer.provider?.getFeeData();
+      const txOptions = feeData?.gasPrice ? { gasPrice: feeData.gasPrice } : {};
+
       // Approve 0.5 USDC creation fee (6 decimals)
       const fee = parseUnits("0.5", 6);
-      const approveTx = await usdc.approve(SAFEPOT_ADDRESS, fee);
+      const approveTx = await usdc.approve(SAFEPOT_ADDRESS, fee, txOptions);
       await approveTx.wait();
 
       // Call createGroup
       const contribution = parseUnits(amount.toString(), 6);
-      const createTx = await safePot.createGroup(name, members, contribution, duration);
+      const createTx = await safePot.createGroup(name, members, contribution, duration, txOptions);
       await createTx.wait();
 
       router.push("/dashboard");
