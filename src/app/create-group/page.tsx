@@ -74,7 +74,7 @@ export default function CreateGroup() {
   if (!mounted) return null;
 
   const potSize = members * amount;
-  const inviteLink = `https://safepot.vercel.app/join/${inviteCode}`;
+  const inviteLink = `${window.location.origin}/join/${inviteCode}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(inviteLink);

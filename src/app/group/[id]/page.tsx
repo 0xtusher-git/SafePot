@@ -346,9 +346,9 @@ export default function GroupDetail() {
                 </h2>
                 <p className="text-xs text-amber-600 mb-3">Share this link with trusted members to let them join. Only people with this link can join.</p>
                 <div className="flex items-center gap-3 bg-white border border-amber-200 rounded-2xl p-3">
-                  <span className="font-mono text-xs text-gray-700 break-all flex-1">https://safepot.vercel.app/join/{group.inviteCode}</span>
+                  <span className="font-mono text-xs text-gray-700 break-all flex-1">{`${window.location.origin}/join/${group.inviteCode}`}</span>
                   <button onClick={() => {
-                    navigator.clipboard.writeText(`https://safepot.vercel.app/join/${group.inviteCode}`);
+                    navigator.clipboard.writeText(`${window.location.origin}/join/${group.inviteCode}`);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }} className="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors flex-shrink-0">
