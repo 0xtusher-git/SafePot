@@ -21,6 +21,9 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.12",
+    "@nomicfoundation/hardhat-toolbox": "^7.0.0",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

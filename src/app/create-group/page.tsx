@@ -5,9 +5,20 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, Info, ShieldCheck, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { Contract, parseUnits } from "ethers";
+
+const USDC_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x0000000000000000000000000000000000000000";
+
+const USDC_ABI = [
+  "function approve(address spender, uint256 amount) external returns (bool)"
+];
+const SAFEPOT_ABI = [
+  "function createGroup(string name, uint256 maxMembers, uint256 contributionAmount, string roundDuration) external"
+];
 
 export default function CreateGroup() {
-  const { isConnected, isTrusted } = useWeb3();
+  const { isConnected, isTrusted, signer } = useWeb3();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
@@ -23,11 +34,33 @@ export default function CreateGroup() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!signer) {
+      alert("Wallet not connected properly.");
+      return;
+    }
+    
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    alert("This would trigger a MetaMask transaction to approve 0.5 USDC and call createGroup().");
-    setLoading(false);
-    router.push("/dashboard");
+    try {
+      const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
+      const safePot = new Contract(SAFEPOT_ADDRESS, SAFEPOT_ABI, signer);
+
+      // Approve 0.5 USDC creation fee (6 decimals)
+      const fee = parseUnits("0.5", 6);
+      const approveTx = await usdc.approve(SAFEPOT_ADDRESS, fee);
+      await approveTx.wait();
+
+      // Call createGroup
+      const contribution = parseUnits(amount.toString(), 6);
+      const createTx = await safePot.createGroup(name, members, contribution, duration);
+      await createTx.wait();
+
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error(error);
+      alert("Transaction failed: " + (error.message || "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isConnected) {
