@@ -5,7 +5,7 @@ import { useWeb3 } from "@/lib/Web3Context";
 import { ShieldCheck, Wallet } from "lucide-react";
 
 export function Navbar() {
-  const { address, isConnected, connect, disconnect, isTrusted } = useWeb3();
+  const { address, isConnected, connect, changeWallet, disconnect, isTrusted } = useWeb3();
 
   return (
     <nav className="w-full py-4 px-6 md:px-12 flex justify-between items-center border-b border-gray-100 bg-white/90 backdrop-blur-md sticky top-0 z-50 shadow-sm transition-all">
@@ -45,7 +45,7 @@ export function Navbar() {
               <div className="absolute right-0 top-full mt-2 hidden group-hover:block w-44 origin-top-right z-50">
                 <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                   <button
-                    onClick={connect}
+                    onClick={changeWallet}
                     className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors flex items-center gap-2"
                   >
                     <Wallet className="w-3.5 h-3.5 text-forest" /> Change Wallet

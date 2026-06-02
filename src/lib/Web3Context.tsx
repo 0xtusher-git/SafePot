@@ -10,6 +10,7 @@ interface Web3ContextType {
   isTrusted: boolean;
   trustScore: number | null;
   connect: () => Promise<void>;
+  changeWallet: () => Promise<void>;
   disconnect: () => void;
   provider: BrowserProvider | null;
   signer: Signer | null;
@@ -115,6 +116,29 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changeWallet = async () => {
+    if (!provider) return;
+    try {
+      // Force the wallet account picker to appear
+      await (window as any).ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
+      });
+      // After user picks an account, fetch the newly selected one
+      const accounts = await provider.send("eth_accounts", []);
+      if (accounts.length > 0) {
+        const newAddress = accounts[0];
+        const s = await provider.getSigner();
+        setAddress(newAddress);
+        setSigner(s);
+        setIsConnected(true);
+        await fetchTrustData(newAddress);
+      }
+    } catch (error) {
+      console.error("Change wallet cancelled or failed", error);
+    }
+  };
+
   const disconnect = () => {
     setAddress(null);
     setIsConnected(false);
@@ -131,6 +155,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         isTrusted,
         trustScore,
         connect,
+        changeWallet,
         disconnect,
         provider,
         signer,
