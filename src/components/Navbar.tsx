@@ -42,13 +42,22 @@ export function Navbar() {
                 <Wallet className="w-4 h-4 text-gold" />
                 {address?.slice(0, 6)}...{address?.slice(-4)}
               </button>
-              <div className="absolute right-0 top-full mt-2 hidden group-hover:block w-36 origin-top-right">
-                <button
-                  onClick={disconnect}
-                  className="w-full text-left px-4 py-2 bg-white hover:bg-red-50 hover:text-red-600 text-gray-700 font-medium text-sm rounded-lg shadow-xl border border-gray-100 transition-colors"
-                >
-                  Disconnect
-                </button>
+              <div className="absolute right-0 top-full mt-2 hidden group-hover:block w-44 origin-top-right z-50">
+                <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                  <button
+                    onClick={connect}
+                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors flex items-center gap-2"
+                  >
+                    <Wallet className="w-3.5 h-3.5 text-forest" /> Change Wallet
+                  </button>
+                  <div className="h-px bg-gray-100" />
+                  <button
+                    onClick={disconnect}
+                    className="w-full text-left px-4 py-2.5 hover:bg-red-50 hover:text-red-600 text-gray-700 font-medium text-sm transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
             </div>
           </div>
