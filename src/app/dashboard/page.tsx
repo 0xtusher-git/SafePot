@@ -87,6 +87,7 @@ export default function Dashboard() {
   }, [isConnected, address, provider]);
 
   const fetchDashboardData = async () => {
+    if (!provider) return;
     setLoading(true);
     try {
       const safePot = new Contract(SAFEPOT_ADDRESS, SAFEPOT_ABI, provider);
