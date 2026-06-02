@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { BrowserProvider, Signer } from "ethers";
 import { getTrustScore } from "./arcGrade";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, CheckCircle2 } from "lucide-react";
 
 interface Web3ContextType {
   address: string | null;
@@ -15,6 +17,8 @@ interface Web3ContextType {
   provider: BrowserProvider | null;
   signer: Signer | null;
   networkError: string | null;
+  displayNames: Record<string, string>;
+  setDisplayName: (address: string, name: string) => void;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -29,6 +33,32 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [signer, setSigner] = useState<Signer | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  
+  const [displayNames, setDisplayNamesState] = useState<Record<string, string>>({});
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [draftName, setDraftName] = useState("");
+
+  // Load names from local storage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("safepot_displayNames");
+      if (stored) {
+        setDisplayNamesState(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to load display names", e);
+    }
+  }, []);
+
+  const setDisplayName = (userAddress: string, name: string) => {
+    const updated = { ...displayNames, [userAddress.toLowerCase()]: name };
+    setDisplayNamesState(updated);
+    try {
+      localStorage.setItem("safepot_displayNames", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save display names", e);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -54,7 +84,17 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setAddress(newAddress);
       setIsConnected(true);
       await fetchTrustData(newAddress);
+      checkNamePrompt(newAddress);
     }
+  };
+
+  const checkNamePrompt = (userAddress: string) => {
+    setDisplayNamesState((current) => {
+      if (!current[userAddress.toLowerCase()]) {
+        setShowNamePrompt(true);
+      }
+      return current;
+    });
   };
 
   const handleChainChanged = () => {
@@ -109,6 +149,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       
       await fetchTrustData(userAddress);
+      checkNamePrompt(userAddress);
 
     } catch (error) {
       console.error("Error connecting to wallet", error);
@@ -133,6 +174,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         setSigner(s);
         setIsConnected(true);
         await fetchTrustData(newAddress);
+        checkNamePrompt(newAddress);
       }
     } catch (error) {
       console.error("Change wallet cancelled or failed", error);
@@ -160,9 +202,65 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         provider,
         signer,
         networkError,
+        displayNames,
+        setDisplayName,
       }}
     >
       {children}
+
+      <AnimatePresence>
+        {showNamePrompt && address && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100"
+            >
+              <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="w-7 h-7 text-forest" />
+              </div>
+              <h2 className="text-2xl font-extrabold text-gray-900 text-center mb-2">Welcome to SafePot!</h2>
+              <p className="text-gray-500 text-sm text-center mb-6 font-medium">
+                Set a display name so your friends can recognize you in savings groups.
+              </p>
+              
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  placeholder="e.g. Tusher, John, Alice"
+                  maxLength={20}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest transition-all font-bold text-center text-lg"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowNamePrompt(false)}
+                  className="flex-1 py-3 px-4 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => {
+                    if (draftName.trim()) {
+                      setDisplayName(address, draftName.trim());
+                      setShowNamePrompt(false);
+                    }
+                  }}
+                  disabled={!draftName.trim()}
+                  className="flex-[2] bg-forest hover:bg-forest/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex justify-center items-center gap-2"
+                >
+                  <CheckCircle2 className="w-5 h-5" /> Save Name
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </Web3Context.Provider>
   );
 }

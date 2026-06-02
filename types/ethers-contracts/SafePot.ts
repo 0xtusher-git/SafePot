@@ -6,16 +6,18 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface SafePotInterface extends Interface {
-    getFunction(nameOrSignature: "CREATION_FEE" | "contribute" | "createGroup" | "getGroup" | "groups" | "joinGroup" | "memberContributions" | "nextGroupId" | "usdcToken"): FunctionFragment;
+    getFunction(nameOrSignature: "CREATION_FEE" | "contribute" | "createGroup" | "getGroup" | "groups" | "inviteCodeToGroupId" | "joinGroup" | "joinPrivateGroup" | "memberContributions" | "nextGroupId" | "usdcToken"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ContributionMade" | "GroupCreated" | "JoinedGroup" | "PotDistributed"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CREATION_FEE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'contribute', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'createGroup', values: [string, BigNumberish, BigNumberish, string]): string;
+encodeFunctionData(functionFragment: 'createGroup', values: [string, BigNumberish, BigNumberish, string, boolean, string]): string;
 encodeFunctionData(functionFragment: 'getGroup', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'groups', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'inviteCodeToGroupId', values: [string]): string;
 encodeFunctionData(functionFragment: 'joinGroup', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'joinPrivateGroup', values: [BigNumberish, string]): string;
 encodeFunctionData(functionFragment: 'memberContributions', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'nextGroupId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'usdcToken', values?: undefined): string;
@@ -25,7 +27,9 @@ decodeFunctionResult(functionFragment: 'contribute', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'groups', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'inviteCodeToGroupId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'joinGroup', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'joinPrivateGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'memberContributions', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextGroupId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
@@ -131,7 +135,7 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
 
     
     createGroup: TypedContractMethod<
-      [name: string, maxMembers: BigNumberish, contributionAmount: BigNumberish, roundDuration: string, ],
+      [name: string, maxMembers: BigNumberish, contributionAmount: BigNumberish, roundDuration: string, isPrivate: boolean, inviteCode: string, ],
       [void],
       'nonpayable'
     >
@@ -140,7 +144,7 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
     
     getGroup: TypedContractMethod<
       [groupId: BigNumberish, ],
-      [[bigint, string, bigint, bigint, string, string[], bigint, bigint, bigint, boolean] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, members: string[], currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean }],
+      [[bigint, string, bigint, bigint, string, string[], bigint, bigint, bigint, boolean, boolean, string] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, members: string[], currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean, isPrivate: boolean, inviteCode: string }],
       'view'
     >
     
@@ -148,7 +152,15 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
     
     groups: TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, string, bigint, bigint, string, bigint, bigint, bigint, boolean] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean }],
+      [[bigint, string, bigint, bigint, string, bigint, bigint, bigint, boolean, boolean, string] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean, isPrivate: boolean, inviteCode: string }],
+      'view'
+    >
+    
+
+    
+    inviteCodeToGroupId: TypedContractMethod<
+      [arg0: string, ],
+      [bigint],
       'view'
     >
     
@@ -156,6 +168,14 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
     
     joinGroup: TypedContractMethod<
       [groupId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    joinPrivateGroup: TypedContractMethod<
+      [groupId: BigNumberish, inviteCode: string, ],
       [void],
       'nonpayable'
     >
@@ -199,22 +219,32 @@ getFunction(nameOrSignature: 'contribute'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createGroup'): TypedContractMethod<
-      [name: string, maxMembers: BigNumberish, contributionAmount: BigNumberish, roundDuration: string, ],
+      [name: string, maxMembers: BigNumberish, contributionAmount: BigNumberish, roundDuration: string, isPrivate: boolean, inviteCode: string, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'getGroup'): TypedContractMethod<
       [groupId: BigNumberish, ],
-      [[bigint, string, bigint, bigint, string, string[], bigint, bigint, bigint, boolean] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, members: string[], currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean }],
+      [[bigint, string, bigint, bigint, string, string[], bigint, bigint, bigint, boolean, boolean, string] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, members: string[], currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean, isPrivate: boolean, inviteCode: string }],
       'view'
     >;
 getFunction(nameOrSignature: 'groups'): TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, string, bigint, bigint, string, bigint, bigint, bigint, boolean] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean }],
+      [[bigint, string, bigint, bigint, string, bigint, bigint, bigint, boolean, boolean, string] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean, isPrivate: boolean, inviteCode: string }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'inviteCodeToGroupId'): TypedContractMethod<
+      [arg0: string, ],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'joinGroup'): TypedContractMethod<
       [groupId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'joinPrivateGroup'): TypedContractMethod<
+      [groupId: BigNumberish, inviteCode: string, ],
       [void],
       'nonpayable'
     >;

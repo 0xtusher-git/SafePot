@@ -2,11 +2,17 @@ import hre from "hardhat";
 
 async function main() {
   const { ethers } = await hre.network.create();
-  const [deployer] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  const deployer = signers[0];
+  
+  if (!deployer) {
+    throw new Error("No deployer account found! Please add your PRIVATE_KEY to the .env file.");
+  }
+  
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // Hardcoded USDC contract address for Arc Testnet
-  const usdcAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+  // Arc Testnet: USDC is the native gas token, exposed as ERC-20 via precompile.
+  const usdcAddress = "0x3600000000000000000000000000000000000000";
   
   console.log("Using USDC address:", usdcAddress);
 

@@ -22,12 +22,17 @@ contract SafePot {
         uint256 potBalance;
         uint256 currentTurnIndex; // which member gets the pot this round
         bool isComplete;
+        bool isPrivate;
+        string inviteCode;
     }
 
     uint256 public nextGroupId = 1;
     mapping(uint256 => Group) public groups;
     // Mapping from groupId to member address to contribution in current round
     mapping(uint256 => mapping(address => uint256)) public memberContributions;
+    
+    // Mapping from invite code to group ID
+    mapping(string => uint256) public inviteCodeToGroupId;
 
     event GroupCreated(uint256 indexed groupId, string name, address creator);
     event JoinedGroup(uint256 indexed groupId, address member);
@@ -38,7 +43,7 @@ contract SafePot {
         usdcToken = IERC20(_usdcToken);
     }
 
-    function createGroup(string memory name, uint256 maxMembers, uint256 contributionAmount, string memory roundDuration) external {
+    function createGroup(string memory name, uint256 maxMembers, uint256 contributionAmount, string memory roundDuration, bool isPrivate, string memory inviteCode) external {
         require(maxMembers >= 2 && maxMembers <= 10, "Members must be between 2 and 10");
         
         // Transfer 0.5 USDC creation fee to contract
@@ -52,6 +57,14 @@ contract SafePot {
         newGroup.roundDuration = roundDuration;
         newGroup.currentRound = 1;
         newGroup.currentTurnIndex = 0;
+        newGroup.isPrivate = isPrivate;
+        
+        if (isPrivate) {
+            require(bytes(inviteCode).length > 0, "Invite code required for private groups");
+            require(inviteCodeToGroupId[inviteCode] == 0, "Invite code already used");
+            newGroup.inviteCode = inviteCode;
+            inviteCodeToGroupId[inviteCode] = nextGroupId;
+        }
         
         // Creator automatically joins
         newGroup.members.push(msg.sender);
@@ -63,6 +76,22 @@ contract SafePot {
     function joinGroup(uint256 groupId) external {
         Group storage group = groups[groupId];
         require(group.id != 0, "Group does not exist");
+        require(!group.isPrivate, "Cannot join private group via this method");
+        require(group.members.length < group.maxMembers, "Group is full");
+        
+        for (uint i = 0; i < group.members.length; i++) {
+            require(group.members[i] != msg.sender, "Already a member");
+        }
+        
+        group.members.push(msg.sender);
+        emit JoinedGroup(groupId, msg.sender);
+    }
+
+    function joinPrivateGroup(uint256 groupId, string memory inviteCode) external {
+        Group storage group = groups[groupId];
+        require(group.id != 0, "Group does not exist");
+        require(group.isPrivate, "Not a private group");
+        require(keccak256(abi.encodePacked(group.inviteCode)) == keccak256(abi.encodePacked(inviteCode)), "Invalid invite code");
         require(group.members.length < group.maxMembers, "Group is full");
         
         for (uint i = 0; i < group.members.length; i++) {
@@ -143,7 +172,9 @@ contract SafePot {
         uint256 currentRound,
         uint256 potBalance,
         uint256 currentTurnIndex,
-        bool isComplete
+        bool isComplete,
+        bool isPrivate,
+        string memory inviteCode
     ) {
         Group storage group = groups[groupId];
         return (
@@ -156,7 +187,9 @@ contract SafePot {
             group.currentRound,
             group.potBalance,
             group.currentTurnIndex,
-            group.isComplete
+            group.isComplete,
+            group.isPrivate,
+            group.inviteCode
         );
     }
 }

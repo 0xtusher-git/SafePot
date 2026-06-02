@@ -1,15 +1,59 @@
 "use client";
 
 import { useWeb3 } from "@/lib/Web3Context";
-import { ShieldCheck, History, Users, Timer, TrendingUp, AlertCircle, Gift } from "lucide-react";
+import { ShieldCheck, History, Users, Timer, TrendingUp, AlertCircle, Gift, Loader2, Edit2, Check, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { Contract, formatUnits, JsonRpcProvider } from "ethers";
+
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x8035224a5d29d94D14C472E767F75BA29E46Fe59";
+
+const SAFEPOT_ABI = [
+  "function nextGroupId() external view returns (uint256)",
+  "function getGroup(uint256 groupId) external view returns (uint256 id, string name, uint256 maxMembers, uint256 contributionAmount, string roundDuration, address[] members, uint256 currentRound, uint256 potBalance, uint256 currentTurnIndex, bool isComplete)",
+  "function memberContributions(uint256, address) external view returns (uint256)",
+  "event ContributionMade(uint256 indexed groupId, address member, uint256 amount)",
+  "event PotDistributed(uint256 indexed groupId, address winner, uint256 amount)"
+];
+
+type ActiveGroup = {
+  id: number;
+  name: string;
+  amount: number;
+  duration: string;
+  membersCount: number;
+  maxMembers: number;
+  currentRound: number;
+  potBalance: number;
+  isTurn: boolean;
+  hasPaid: boolean;
+  potSize: number;
+  isComplete: boolean;
+};
+
+type Activity = {
+  type: "contribution" | "win";
+  groupId: number;
+  groupName: string;
+  amount: number;
+  txHash: string;
+  blockNumber: number;
+};
 
 export default function Dashboard() {
-  const { isConnected, isTrusted, trustScore, address } = useWeb3();
+  const { isConnected, isTrusted, trustScore, address, provider, displayNames, setDisplayName } = useWeb3();
   const [mounted, setMounted] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  
+  const [activeGroups, setActiveGroups] = useState<ActiveGroup[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+  const [totalSaved, setTotalSaved] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Fallback timer just for UI aesthetic (can't determine exact on-chain deadline without block timestamps)
   const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 14, minutes: 30, seconds: 0 });
 
   useEffect(() => {
@@ -36,11 +80,134 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (isConnected && address && provider) {
+      fetchDashboardData();
+    }
+  }, [isConnected, address, provider]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const safePot = new Contract(SAFEPOT_ADDRESS, SAFEPOT_ABI, provider);
+      
+      const nextIdBigInt = await safePot.nextGroupId();
+      const nextId = Number(nextIdBigInt);
+      
+      const myGroups: ActiveGroup[] = [];
+      const groupNames: Record<number, string> = {};
+      
+      // 1. Fetch Groups
+      for (let i = 1; i < nextId; i++) {
+        const groupData = await safePot.getGroup(i);
+        groupNames[i] = groupData.name;
+        
+        const membersArray: string[] = groupData.members;
+        
+        // Is user in this group?
+        const isMember = membersArray.map(m => m.toLowerCase()).includes(address!.toLowerCase());
+        
+        if (isMember) {
+          const currentRound = Number(groupData.currentRound);
+          // Check if paid for current round
+          const contributionRound = await safePot.memberContributions(i, address);
+          const hasPaid = Number(contributionRound) >= currentRound;
+          
+          const isTurn = membersArray.length > 0 && membersArray[Number(groupData.currentTurnIndex)]?.toLowerCase() === address!.toLowerCase();
+          
+          myGroups.push({
+            id: i,
+            name: groupData.name,
+            amount: Number(formatUnits(groupData.contributionAmount, 6)),
+            duration: groupData.roundDuration,
+            membersCount: membersArray.length,
+            maxMembers: Number(groupData.maxMembers),
+            currentRound: currentRound,
+            potBalance: Number(formatUnits(groupData.potBalance, 6)),
+            isTurn: isTurn,
+            hasPaid: hasPaid,
+            potSize: Number(formatUnits(groupData.contributionAmount, 6)) * Number(groupData.maxMembers),
+            isComplete: groupData.isComplete
+          });
+        }
+      }
+      
+      myGroups.sort((a, b) => b.id - a.id);
+      setActiveGroups(myGroups);
+
+      // 2. Fetch Activity Events safely in chunks to avoid 10k RPC limit
+      const activities: Activity[] = [];
+      const latestBlock = await provider.getBlockNumber();
+      
+      const filterContribution = safePot.filters.ContributionMade(null, address);
+      const filterWin = safePot.filters.PotDistributed(null, address);
+      
+      let contribEvents: any[] = [];
+      let winEvents: any[] = [];
+      
+      let fromBlock = Math.max(0, latestBlock - 100000); // look back ~100k blocks max
+      while (fromBlock <= latestBlock) {
+        let toBlock = Math.min(fromBlock + 9999, latestBlock);
+        try {
+          const [cEvents, wEvents] = await Promise.all([
+            safePot.queryFilter(filterContribution, fromBlock, toBlock),
+            safePot.queryFilter(filterWin, fromBlock, toBlock)
+          ]);
+          contribEvents = [...contribEvents, ...cEvents];
+          winEvents = [...winEvents, ...wEvents];
+        } catch (e) {
+          console.warn(`Failed logs from ${fromBlock} to ${toBlock}`, e);
+        }
+        fromBlock = toBlock + 1;
+      }
+      let calculatedTotalSaved = 0;
+      
+      for (const event of contribEvents) {
+        if (!event || !('args' in event)) continue;
+        const groupId = Number(event.args[0]);
+        activities.push({
+          type: "contribution",
+          groupId,
+          groupName: groupNames[groupId] || `Group ${groupId}`,
+          amount: Number(formatUnits(event.args[2], 6)),
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber
+        });
+      }
+      
+      for (const event of winEvents) {
+        if (!event || !('args' in event)) continue;
+        const groupId = Number(event.args[0]);
+        const amount = Number(formatUnits(event.args[2], 6));
+        calculatedTotalSaved += amount;
+        
+        activities.push({
+          type: "win",
+          groupId,
+          groupName: groupNames[groupId] || `Group ${groupId}`,
+          amount,
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber
+        });
+      }
+      
+      activities.sort((a, b) => b.blockNumber - a.blockNumber);
+      
+      setRecentActivity(activities.slice(0, 5)); // Keep latest 5
+      setTotalSaved(calculatedTotalSaved);
+      
+    } catch (err) {
+      console.error("Error fetching dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!mounted) return null;
 
   if (!isConnected) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-light">
+      <div className="flex-1 flex items-center justify-center bg-light min-h-[60vh]">
         <p className="text-xl text-gray-500 font-medium">Please connect your wallet to view your dashboard.</p>
       </div>
     );
@@ -65,7 +232,41 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">My Dashboard</h1>
-            <p className="text-gray-500 font-medium">Welcome back, {address?.slice(0, 6)}...{address?.slice(-4)}</p>
+            <div className="flex items-center gap-3">
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={e => setDraftName(e.target.value)}
+                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-forest"
+                    autoFocus
+                    maxLength={20}
+                  />
+                  <button onClick={() => {
+                    if (address && draftName.trim()) {
+                      setDisplayName(address, draftName.trim());
+                    }
+                    setIsEditingName(false);
+                  }} className="text-green-600 hover:text-green-700 bg-green-50 p-1 rounded-md">
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setIsEditingName(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1 rounded-md">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-gray-500 font-medium flex items-center gap-2">
+                  Welcome back, <span className="text-gray-900 font-bold">{address ? (displayNames[address.toLowerCase()] || `${address.slice(0, 6)}...${address.slice(-4)}`) : ""}</span>
+                  <button onClick={() => {
+                    setDraftName(address ? (displayNames[address.toLowerCase()] || "") : "");
+                    setIsEditingName(true);
+                  }} className="text-gray-400 hover:text-forest transition-colors">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </p>
+              )}
+            </div>
           </div>
           <Link 
             href="/create-group"
@@ -114,20 +315,22 @@ export default function Dashboard() {
 
           {/* Stats Cards */}
           <div className="md:col-span-2 grid grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col justify-center shadow-sm hover:shadow-md transition-shadow">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col justify-center shadow-sm hover:shadow-md transition-shadow relative">
+              {loading && <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-3xl z-10"><Loader2 className="w-6 h-6 animate-spin text-forest" /></div>}
               <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-4">
                 <TrendingUp className="text-forest w-6 h-6" />
               </div>
-              <p className="text-gray-500 font-bold text-xs mb-1 uppercase tracking-wider">Total Saved</p>
-              <h2 className="text-3xl font-extrabold text-gray-900">500 <span className="text-xl text-gray-400 font-semibold">USDC</span></h2>
+              <p className="text-gray-500 font-bold text-xs mb-1 uppercase tracking-wider">Total Won</p>
+              <h2 className="text-3xl font-extrabold text-gray-900">{totalSaved.toLocaleString()} <span className="text-xl text-gray-400 font-semibold">USDC</span></h2>
             </motion.div>
             
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col justify-center shadow-sm hover:shadow-md transition-shadow">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col justify-center shadow-sm hover:shadow-md transition-shadow relative">
+              {loading && <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-3xl z-10"><Loader2 className="w-6 h-6 animate-spin text-forest" /></div>}
               <div className="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center mb-4">
                 <Users className="text-gold w-6 h-6" />
               </div>
               <p className="text-gray-500 font-bold text-xs mb-1 uppercase tracking-wider">Active Groups</p>
-              <h2 className="text-3xl font-extrabold text-gray-900">2</h2>
+              <h2 className="text-3xl font-extrabold text-gray-900">{activeGroups.filter(g => !g.isComplete).length}</h2>
             </motion.div>
           </div>
         </div>
@@ -135,119 +338,125 @@ export default function Dashboard() {
         {/* Active Groups Section */}
         <div className="flex justify-between items-center mt-8 mb-4">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Timer className="text-forest w-6 h-6" /> My Active Groups
+            <Timer className="text-forest w-6 h-6" /> My Groups
           </h2>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Mock Group Card 1 */}
-          <Link href="/group/1" className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between border-l-4 border-l-forest">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 group-hover:text-forest transition-colors">Alpha Savers</h3>
-                <p className="text-gray-500 text-sm font-medium mt-1">Monthly • 100 USDC/round</p>
-              </div>
-              <span className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-yellow-200">
-                Your Turn: Round 3
-              </span>
-            </div>
-            
-            <div>
-              <div className="flex justify-between text-sm font-bold text-gray-700 mb-2">
-                <span>Round 2 Progress</span>
-                <span>40% Filled</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden mb-4">
-                <motion.div 
-                  initial={{ width: 0 }} whileInView={{ width: "40%" }} transition={{ duration: 1 }}
-                  className="bg-forest h-full rounded-full"
-                ></motion.div>
-              </div>
-              <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
-                <div className="flex -space-x-2">
-                  {[1,2,3,4,5].map((i) => (
-                    <div key={i} className={`w-6 h-6 rounded-full border-2 border-white ${i <= 2 ? 'bg-forest' : 'bg-gray-200'}`} />
-                  ))}
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-900 font-bold">200 / 500 USDC</p>
-                  <p>Current Pot</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
-              <div className="flex items-center gap-2 text-sm text-gray-600 font-semibold">
-                <Timer className="w-4 h-4 text-forest" />
-                <span suppressHydrationWarning>{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</span>
-              </div>
-              <button className="text-forest font-bold text-sm hover:underline">Contribute</button>
-            </div>
-          </Link>
-
-          {/* Mock Group Card 2 (Won Pot scenario) */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between border-l-4 border-l-gold">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 transition-colors">Beta Builders</h3>
-                <p className="text-gray-500 text-sm font-medium mt-1">Weekly • 50 USDC/round</p>
-              </div>
-              <span className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-green-200 flex items-center gap-1">
-                <Gift className="w-3 h-3" /> Pot Won!
-              </span>
-            </div>
-            
-            <div>
-              <div className="flex justify-between text-sm font-bold text-gray-700 mb-2">
-                <span>Round 5 Progress</span>
-                <span>100% Filled</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden mb-4">
-                <div className="bg-gold h-full w-full rounded-full"></div>
-              </div>
-              <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
-                <div className="flex -space-x-2">
-                  {[1,2,3,4].map((i) => (
-                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-forest" />
-                  ))}
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-900 font-bold">200 / 200 USDC</p>
-                  <p>Total Pot</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
-              <button 
-                onClick={triggerConfetti}
-                className="bg-gold hover:bg-yellow-500 text-forest font-bold px-4 py-2 rounded-full text-sm transition-colors shadow-sm"
-              >
-                Claim Pot
-              </button>
-            </div>
+        {loading ? (
+           <div className="py-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl shadow-sm">
+             <Loader2 className="w-8 h-8 text-forest animate-spin mb-3" />
+             <p className="text-gray-500 font-medium">Loading your groups...</p>
+           </div>
+        ) : activeGroups.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl shadow-sm">
+            <Users className="w-12 h-12 text-gray-300 mb-4" />
+            <h3 className="text-xl font-bold text-gray-700 mb-2">No groups yet</h3>
+            <p className="text-gray-400 font-medium mb-6">You haven't joined any savings groups.</p>
+            <Link href="/browse" className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-6 py-2.5 rounded-full transition-colors">
+              Browse Groups
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <AnimatePresence>
+              {activeGroups.map((group, i) => {
+                const fillPercent = group.membersCount === 0 ? 0 : (group.potBalance / group.potSize) * 100;
+                
+                return (
+                  <Link href={`/group/${group.id}`} key={group.id} className={`bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between border-l-4 ${group.isComplete ? 'border-l-gray-300 opacity-80' : group.isTurn ? 'border-l-gold' : 'border-l-forest'}`}>
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-forest transition-colors">{group.name}</h3>
+                        <p className="text-gray-500 text-sm font-medium mt-1">{group.duration || "Monthly"} • {group.amount} USDC/round</p>
+                      </div>
+                      {group.isComplete ? (
+                         <span className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200">
+                           Completed
+                         </span>
+                      ) : group.isTurn ? (
+                         <span className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-yellow-200 flex items-center gap-1">
+                           <Gift className="w-3 h-3" /> Your Turn!
+                         </span>
+                      ) : (
+                         <span className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-green-200">
+                           Round {group.currentRound}
+                         </span>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between text-sm font-bold text-gray-700 mb-2">
+                        <span>Round {group.currentRound} Progress</span>
+                        <span>{Math.round(fillPercent)}% Filled</span>
+                      </div>
+                      <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden mb-4">
+                        <motion.div 
+                          initial={{ width: 0 }} whileInView={{ width: `${fillPercent}%` }} transition={{ duration: 1 }}
+                          className={`${group.isComplete ? 'bg-gray-400' : group.isTurn ? 'bg-gold' : 'bg-forest'} h-full rounded-full`}
+                        ></motion.div>
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
+                        <div className="flex -space-x-2">
+                          {Array.from({ length: group.membersCount }).map((_, idx) => (
+                            <div key={idx} className={`w-6 h-6 rounded-full border-2 border-white ${idx < (group.potBalance / group.amount) ? 'bg-forest' : 'bg-gray-200'}`} />
+                          ))}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-gray-900 font-bold">{group.potBalance} / {group.potSize} USDC</p>
+                          <p>Current Pot</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
+                      {!group.isComplete && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600 font-semibold">
+                          <Timer className="w-4 h-4 text-forest" />
+                          <span suppressHydrationWarning>{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</span>
+                        </div>
+                      )}
+                      
+                      {group.isComplete ? (
+                        <button className="text-gray-400 font-bold text-sm ml-auto">Cycle Finished</button>
+                      ) : group.hasPaid ? (
+                        <button className="text-gray-400 font-bold text-sm ml-auto">Paid ✅</button>
+                      ) : (
+                        <button className="text-forest font-bold text-sm hover:underline ml-auto">Contribute →</button>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* History */}
         <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4 flex items-center gap-2">
           <History className="text-forest w-6 h-6" /> Recent Activity
         </h2>
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition-colors">
-            <div className="flex flex-col">
-               <span className="text-gray-900 font-bold text-sm">Contributed to Alpha Savers</span>
-               <span className="text-gray-500 text-xs">Today at 10:42 AM</span>
-            </div>
-            <span className="text-gray-900 font-bold font-mono">-100 USDC</span>
-          </div>
-          <div className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors">
-            <div className="flex flex-col">
-               <span className="text-gray-900 font-bold text-sm">Won Pot in Beta Builders</span>
-               <span className="text-gray-500 text-xs">Yesterday</span>
-            </div>
-            <span className="text-green-600 font-bold font-mono">+200 USDC</span>
-          </div>
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm min-h-[100px] relative">
+          {loading && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10"><Loader2 className="w-6 h-6 animate-spin text-forest" /></div>}
+          
+          {!loading && recentActivity.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 font-medium">No activity yet.</div>
+          ) : (
+            recentActivity.map((activity, i) => (
+              <div key={i} className="p-4 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition-colors last:border-b-0">
+                <div className="flex flex-col">
+                   <span className="text-gray-900 font-bold text-sm">
+                     {activity.type === 'contribution' ? `Contributed to ${activity.groupName}` : `Won Pot in ${activity.groupName}`}
+                   </span>
+                   <Link href={`https://explorer.testnet.arc.network/tx/${activity.txHash}`} target="_blank" className="text-forest text-xs hover:underline">
+                     Block {activity.blockNumber} • View Tx
+                   </Link>
+                </div>
+                <span className={`font-bold font-mono ${activity.type === 'contribution' ? 'text-gray-900' : 'text-green-600'}`}>
+                  {activity.type === 'contribution' ? '-' : '+'}{activity.amount} USDC
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
