@@ -4,6 +4,7 @@ import { useWeb3 } from "@/lib/Web3Context";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, Info, ShieldCheck, Sparkles, AlertCircle, Lock, Globe, Copy, CheckCircle2 } from "lucide-react";
+import TermsModal from "@/components/TermsModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { Contract, parseUnits, isError } from "ethers";
 
@@ -69,6 +70,7 @@ export default function CreateGroup() {
   const [txError, setTxError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [createdGroupId, setCreatedGroupId] = useState<number | null>(null);
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
@@ -84,6 +86,31 @@ export default function CreateGroup() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTxError(null);
+    setTxStatus(null);
+
+    if (!signer) { setTxError("Wallet not connected properly. Please reconnect."); return; }
+
+    const address = await signer.getAddress();
+    const accepted = localStorage.getItem(`safepot_terms_accepted_${address}`);
+    
+    if (!accepted) {
+      setShowTerms(true);
+      return;
+    }
+    
+    executeCreate();
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!signer) return;
+    const address = await signer.getAddress();
+    localStorage.setItem(`safepot_terms_accepted_${address}`, "true");
+    setShowTerms(false);
+    executeCreate();
+  };
+
+  const executeCreate = async () => {
     setTxError(null);
     setTxStatus(null);
 
@@ -221,7 +248,13 @@ export default function CreateGroup() {
 
   // ── Main Form ──────────────────────────────────────────────────────────
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <>
+      <TermsModal 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        onAccept={handleAcceptTerms} 
+      />
+      <div className="w-full min-h-screen bg-gray-50">
       <div className="w-full max-w-2xl mx-auto px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Create a Group</h1>
@@ -424,5 +457,6 @@ export default function CreateGroup() {
         </motion.form>
       </div>
     </div>
+    </>
   );
 }

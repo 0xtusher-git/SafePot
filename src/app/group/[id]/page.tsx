@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Contract, formatUnits, JsonRpcProvider, parseUnits } from "ethers";
 import Link from "next/link";
+import TermsModal from "@/components/TermsModal";
 
 const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
@@ -65,6 +66,7 @@ export default function GroupDetail() {
   const [error, setError] = useState<string | null>(null);
   const [contributing, setContributing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   // Fallback UI Timer
   const [timeLeft, setTimeLeft] = useState({ days: 5, hours: 8, minutes: 22, seconds: 0 });
@@ -219,6 +221,26 @@ export default function GroupDetail() {
     if (!group?.isPrivate && !isTrusted) { alert("Trust score too low for public groups. Improve at arc-grade.vercel.app"); return; }
     if (!group) return;
     
+    const currentAddress = await signer.getAddress();
+    const accepted = localStorage.getItem(`safepot_terms_accepted_${currentAddress}`);
+    if (!accepted) {
+      setShowTerms(true);
+      return;
+    }
+
+    executeContribute();
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!signer) return;
+    const currentAddress = await signer.getAddress();
+    localStorage.setItem(`safepot_terms_accepted_${currentAddress}`, "true");
+    setShowTerms(false);
+    executeContribute();
+  };
+
+  const executeContribute = async () => {
+    if (!signer || !group) return;
     setContributing(true);
     try {
       const usdcAmount = parseUnits(group.amount.toString(), 6);
@@ -293,7 +315,13 @@ export default function GroupDetail() {
   const myMemberInfo = isMember ? group.members.find(m => m.address.toLowerCase() === address!.toLowerCase()) : null;
 
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <>
+      <TermsModal 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        onAccept={handleAcceptTerms} 
+      />
+      <div className="w-full min-h-screen bg-gray-50">
       <div className="w-full max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-start mb-10 gap-4">
@@ -523,5 +551,6 @@ export default function GroupDetail() {
         </div>
       </div>
     </div>
+    </>
   );
 }

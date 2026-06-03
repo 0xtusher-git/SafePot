@@ -7,6 +7,7 @@ import { Lock, Users, ShieldCheck, AlertCircle, Loader2, ArrowRight, ShieldAlert
 import { motion } from "framer-motion";
 import { Contract, formatUnits, JsonRpcProvider } from "ethers";
 import Link from "next/link";
+import TermsModal from "@/components/TermsModal";
 
 const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
@@ -38,6 +39,7 @@ export default function JoinPrivateGroup() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [alreadyMember, setAlreadyMember] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -102,6 +104,26 @@ export default function JoinPrivateGroup() {
     }
     if (!group) return;
 
+    const currentAddress = await signer.getAddress();
+    const accepted = localStorage.getItem(`safepot_terms_accepted_${currentAddress}`);
+    if (!accepted) {
+      setShowTerms(true);
+      return;
+    }
+
+    executeJoin();
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!signer) return;
+    const currentAddress = await signer.getAddress();
+    localStorage.setItem(`safepot_terms_accepted_${currentAddress}`, "true");
+    setShowTerms(false);
+    executeJoin();
+  };
+
+  const executeJoin = async () => {
+    if (!signer || !group) return;
     setJoining(true);
     try {
       const safePot = new Contract(SAFEPOT_ADDRESS, SAFEPOT_ABI, signer);
@@ -156,7 +178,13 @@ export default function JoinPrivateGroup() {
   const isFull = group.members >= group.maxMembers;
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <>
+      <TermsModal 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        onAccept={handleAcceptTerms} 
+      />
+      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
           className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
@@ -250,5 +278,6 @@ export default function JoinPrivateGroup() {
         </motion.div>
       </div>
     </div>
+    </>
   );
 }

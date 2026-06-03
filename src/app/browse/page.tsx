@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Search, ShieldAlert, Users, Filter, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Contract, JsonRpcProvider, formatUnits } from "ethers";
+import TermsModal from "@/components/TermsModal";
 
 const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
@@ -40,6 +41,9 @@ export default function BrowseGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [showTerms, setShowTerms] = useState(false);
+  const [pendingGroupId, setPendingGroupId] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -108,6 +112,29 @@ export default function BrowseGroups() {
     if (!isConnected || !signer) { alert("Please connect your wallet first."); return; }
     if (!isTrusted) { alert("Your wallet trust score is too low. Improve at arc-grade.vercel.app"); return; }
     
+    const currentAddress = await signer.getAddress();
+    const accepted = localStorage.getItem(`safepot_terms_accepted_${currentAddress}`);
+    if (!accepted) {
+      setPendingGroupId(groupId);
+      setShowTerms(true);
+      return;
+    }
+
+    executeJoin(groupId);
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!signer) return;
+    const currentAddress = await signer.getAddress();
+    localStorage.setItem(`safepot_terms_accepted_${currentAddress}`, "true");
+    setShowTerms(false);
+    if (pendingGroupId !== null) {
+      executeJoin(pendingGroupId);
+    }
+  };
+
+  const executeJoin = async (groupId: number) => {
+    if (!signer) return;
     try {
       const safePot = new Contract(SAFEPOT_ADDRESS, [
         "function joinGroup(uint256 groupId) external"
@@ -128,7 +155,13 @@ export default function BrowseGroups() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <>
+      <TermsModal 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        onAccept={handleAcceptTerms} 
+      />
+      <div className="w-full min-h-screen bg-gray-50">
       <div className="w-full max-w-6xl mx-auto px-6 py-12">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
@@ -312,5 +345,6 @@ export default function BrowseGroups() {
         )}
       </div>
     </div>
+    </>
   );
 }
