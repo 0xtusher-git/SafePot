@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface SafePotInterface extends Interface {
-    getFunction(nameOrSignature: "CREATION_FEE" | "contribute" | "createGroup" | "getGroup" | "groups" | "inviteCodeToGroupId" | "joinGroup" | "joinPrivateGroup" | "memberContributions" | "nextGroupId" | "usdcToken"): FunctionFragment;
+    getFunction(nameOrSignature: "CREATION_FEE" | "contribute" | "createGroup" | "getGroup" | "groups" | "hasRugged" | "installmentAmount" | "inviteCodeToGroupId" | "inviterOf" | "joinGroup" | "joinPrivateGroup" | "memberContributions" | "nextGroupId" | "pendingInstallments" | "slashInviter" | "slashPublicMember" | "usdcToken"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ContributionMade" | "GroupCreated" | "JoinedGroup" | "PotDistributed"): EventFragment;
 
@@ -15,11 +15,17 @@ encodeFunctionData(functionFragment: 'contribute', values: [BigNumberish]): stri
 encodeFunctionData(functionFragment: 'createGroup', values: [string, BigNumberish, BigNumberish, string, boolean, string]): string;
 encodeFunctionData(functionFragment: 'getGroup', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'groups', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'hasRugged', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'installmentAmount', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'inviteCodeToGroupId', values: [string]): string;
+encodeFunctionData(functionFragment: 'inviterOf', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'joinGroup', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'joinPrivateGroup', values: [BigNumberish, string]): string;
 encodeFunctionData(functionFragment: 'memberContributions', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'nextGroupId', values?: undefined): string;
+encodeFunctionData(functionFragment: 'pendingInstallments', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'slashInviter', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'slashPublicMember', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'usdcToken', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'CREATION_FEE', data: BytesLike): Result;
@@ -27,11 +33,17 @@ decodeFunctionResult(functionFragment: 'contribute', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'groups', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasRugged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'installmentAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'inviteCodeToGroupId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'inviterOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'joinGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'joinPrivateGroup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'memberContributions', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextGroupId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'pendingInstallments', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'slashInviter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'slashPublicMember', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
   }
 
@@ -158,9 +170,33 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
     
 
     
+    hasRugged: TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    installmentAmount: TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     inviteCodeToGroupId: TypedContractMethod<
       [arg0: string, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    inviterOf: TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [string],
       'view'
     >
     
@@ -194,6 +230,30 @@ decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
       [],
       [bigint],
       'view'
+    >
+    
+
+    
+    pendingInstallments: TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    slashInviter: TypedContractMethod<
+      [groupId: BigNumberish, memberId: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    slashPublicMember: TypedContractMethod<
+      [groupId: BigNumberish, memberId: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -233,9 +293,24 @@ getFunction(nameOrSignature: 'groups'): TypedContractMethod<
       [[bigint, string, bigint, bigint, string, bigint, bigint, bigint, boolean, boolean, string] & {id: bigint, name: string, maxMembers: bigint, contributionAmount: bigint, roundDuration: string, currentRound: bigint, potBalance: bigint, currentTurnIndex: bigint, isComplete: boolean, isPrivate: boolean, inviteCode: string }],
       'view'
     >;
+getFunction(nameOrSignature: 'hasRugged'): TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'installmentAmount'): TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'inviteCodeToGroupId'): TypedContractMethod<
       [arg0: string, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'inviterOf'): TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'joinGroup'): TypedContractMethod<
@@ -257,6 +332,21 @@ getFunction(nameOrSignature: 'nextGroupId'): TypedContractMethod<
       [],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'pendingInstallments'): TypedContractMethod<
+      [arg0: BigNumberish, arg1: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'slashInviter'): TypedContractMethod<
+      [groupId: BigNumberish, memberId: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'slashPublicMember'): TypedContractMethod<
+      [groupId: BigNumberish, memberId: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'usdcToken'): TypedContractMethod<
       [],

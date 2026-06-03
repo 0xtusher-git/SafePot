@@ -7,7 +7,7 @@ import { Search, ShieldAlert, Users, Filter, ArrowRight, Loader2, AlertCircle } 
 import { motion, AnimatePresence } from "framer-motion";
 import { Contract, JsonRpcProvider, formatUnits } from "ethers";
 
-const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x8035224a5d29d94D14C472E767F75BA29E46Fe59";
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
 const SAFEPOT_ABI = [
   "function nextGroupId() external view returns (uint256)",

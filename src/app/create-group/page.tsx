@@ -275,11 +275,19 @@ export default function CreateGroup() {
                 <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                   <Lock className="w-3 h-3" /> Your invite link (save after creation)
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-3">
                   <p className="font-mono text-xs text-amber-800 break-all flex-1">{inviteLink}</p>
                   <button type="button" onClick={copyLink} className="text-amber-700 hover:text-amber-900 font-bold text-xs bg-amber-100 px-2 py-1 rounded-lg flex-shrink-0">
                     {copied ? "✓" : <Copy className="w-3 h-3" />}
                   </button>
+                </div>
+                <div className="bg-amber-100/50 p-3 rounded-xl border border-amber-200/60">
+                  <p className="text-xs text-amber-900 font-bold mb-1 flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3 text-red-500" /> Social Guarantee
+                  </p>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    You are responsible for this member's behavior. If they stop contributing (rug), your 30% held funds will be slashed and distributed to the remaining members. Only invite people you trust.
+                  </p>
                 </div>
               </motion.div>
             )}

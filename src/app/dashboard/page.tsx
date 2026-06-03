@@ -8,12 +8,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Contract, formatUnits, JsonRpcProvider } from "ethers";
 
-const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x8035224a5d29d94D14C472E767F75BA29E46Fe59";
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
 const SAFEPOT_ABI = [
   "function nextGroupId() external view returns (uint256)",
   "function getGroup(uint256 groupId) external view returns (uint256 id, string name, uint256 maxMembers, uint256 contributionAmount, string roundDuration, address[] members, uint256 currentRound, uint256 potBalance, uint256 currentTurnIndex, bool isComplete)",
   "function memberContributions(uint256, address) external view returns (uint256)",
+  "function pendingInstallments(uint256, address) external view returns (uint256)",
+  "function installmentAmount(uint256, address) external view returns (uint256)",
   "event ContributionMade(uint256 indexed groupId, address member, uint256 amount)",
   "event PotDistributed(uint256 indexed groupId, address winner, uint256 amount)"
 ];
@@ -31,6 +33,8 @@ type ActiveGroup = {
   hasPaid: boolean;
   potSize: number;
   isComplete: boolean;
+  pendingInstallments: number;
+  installmentAmount: number;
 };
 
 type Activity = {
@@ -116,6 +120,17 @@ export default function Dashboard() {
           
           const isTurn = membersArray.length > 0 && membersArray[Number(groupData.currentTurnIndex)]?.toLowerCase() === address!.toLowerCase();
           
+          let pInstallments = 0;
+          let instAmount = 0;
+          try {
+            const pInstBigInt = await safePot.pendingInstallments(i, address);
+            const instAmtBigInt = await safePot.installmentAmount(i, address);
+            pInstallments = Number(pInstBigInt);
+            instAmount = Number(formatUnits(instAmtBigInt, 6));
+          } catch (e) {
+            console.warn("Could not fetch installments (old contract?)", e);
+          }
+          
           myGroups.push({
             id: i,
             name: groupData.name,
@@ -128,7 +143,9 @@ export default function Dashboard() {
             isTurn: isTurn,
             hasPaid: hasPaid,
             potSize: Number(formatUnits(groupData.contributionAmount, 6)) * Number(groupData.maxMembers),
-            isComplete: groupData.isComplete
+            isComplete: groupData.isComplete,
+            pendingInstallments: pInstallments,
+            installmentAmount: instAmount
           });
         }
       }
@@ -407,6 +424,19 @@ export default function Dashboard() {
                           <p>Current Pot</p>
                         </div>
                       </div>
+                      
+                      {group.pendingInstallments > 0 && (
+                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-amber-800 uppercase">Pending Payout</p>
+                            <p className="text-[10px] text-amber-700">Releases gradually each round</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-extrabold text-amber-700">{group.pendingInstallments * group.installmentAmount} USDC</p>
+                            <p className="text-[10px] text-amber-600 font-medium">in {group.pendingInstallments} payments</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">

@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { Contract, formatUnits, JsonRpcProvider } from "ethers";
 import Link from "next/link";
 
-const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x8035224a5d29d94D14C472E767F75BA29E46Fe59";
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
 const SAFEPOT_ABI = [
   "function inviteCodeToGroupId(string) external view returns (uint256)",
@@ -220,9 +220,20 @@ export default function JoinPrivateGroup() {
               </div>
             ) : (
               <div>
-                <p className="text-gray-600 font-medium text-sm text-center mb-6">
+                <p className="text-gray-600 font-medium text-sm text-center mb-4">
                   You've been invited to join <strong>{group.name}</strong>. Joining will add you to the savings rotation.
                 </p>
+                
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100 mb-6 flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-red-800 mb-1">Important Responsibility</p>
+                    <p className="text-xs text-red-700 leading-relaxed">
+                      Your inviter's funds are at risk if you stop contributing. By joining this group, you commit to making all contributions on time. If you rug, your inviter will be penalized.
+                    </p>
+                  </div>
+                </div>
+
                 <button onClick={handleJoin} disabled={joining}
                   className={`w-full flex items-center justify-center gap-2 font-bold text-lg py-4 rounded-full transition-all shadow-md ${joining ? 'bg-forest/70 text-white cursor-not-allowed' : 'bg-forest hover:bg-forest/90 text-white hover:shadow-lg hover:-translate-y-0.5'}`}>
                   {joining

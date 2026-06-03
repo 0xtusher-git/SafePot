@@ -9,7 +9,7 @@ import confetti from "canvas-confetti";
 import { Contract, formatUnits, JsonRpcProvider, parseUnits } from "ethers";
 import Link from "next/link";
 
-const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x8035224a5d29d94D14C472E767F75BA29E46Fe59";
+const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
 
 const SAFEPOT_ABI = [

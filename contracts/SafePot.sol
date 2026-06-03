@@ -34,6 +34,15 @@ contract SafePot {
     // Mapping from invite code to group ID
     mapping(string => uint256) public inviteCodeToGroupId;
 
+    // Track remaining installments for a winner
+    mapping(uint256 => mapping(address => uint256)) public pendingInstallments;
+    // Track the amount per installment for a winner
+    mapping(uint256 => mapping(address => uint256)) public installmentAmount;
+    // Track the inviter of each member in private groups
+    mapping(uint256 => mapping(address => address)) public inviterOf;
+    // Track whether a member has rugged
+    mapping(uint256 => mapping(address => bool)) public hasRugged;
+
     event GroupCreated(uint256 indexed groupId, string name, address creator);
     event JoinedGroup(uint256 indexed groupId, address member);
     event ContributionMade(uint256 indexed groupId, address member, uint256 amount);
@@ -68,6 +77,7 @@ contract SafePot {
         
         // Creator automatically joins
         newGroup.members.push(msg.sender);
+        inviterOf[nextGroupId][msg.sender] = msg.sender;
         
         emit GroupCreated(nextGroupId, name, msg.sender);
         nextGroupId++;
@@ -99,6 +109,7 @@ contract SafePot {
         }
         
         group.members.push(msg.sender);
+        inviterOf[groupId][msg.sender] = group.members[0]; // The creator is the default inviter
         emit JoinedGroup(groupId, msg.sender);
     }
 
@@ -125,11 +136,12 @@ contract SafePot {
         
         emit ContributionMade(groupId, msg.sender, group.contributionAmount);
 
-        // Check if round is complete (all members contributed)
+        // Check if round is complete (all non-rugged members contributed)
         if (group.members.length == group.maxMembers) {
             bool roundComplete = true;
             for (uint i = 0; i < group.members.length; i++) {
-                if (memberContributions[groupId][group.members[i]] < group.currentRound) {
+                address m = group.members[i];
+                if (!hasRugged[groupId][m] && memberContributions[groupId][m] < group.currentRound) {
                     roundComplete = false;
                     break;
                 }
@@ -146,20 +158,129 @@ contract SafePot {
         Group storage group = groups[groupId];
         require(group.potBalance > 0, "Pot is empty");
         
+        // --- GRADUAL RELEASE FOR PAST WINNERS ---
+        gradualRelease(groupId);
+        
+        // Skip rugged members for the current turn
+        while (group.currentTurnIndex < group.members.length && hasRugged[groupId][group.members[group.currentTurnIndex]]) {
+            group.currentTurnIndex++;
+        }
+        
+        if (group.currentTurnIndex >= group.members.length) {
+            group.isComplete = true;
+            return;
+        }
+
         address winner = group.members[group.currentTurnIndex];
         uint256 amount = group.potBalance;
         group.potBalance = 0;
         
-        require(usdcToken.transfer(winner, amount), "Transfer to winner failed");
-        emit PotDistributed(groupId, winner, amount);
+        // Calculate remaining non-rugged rounds
+        uint256 remainingRounds = 0;
+        for(uint i = group.currentTurnIndex + 1; i < group.members.length; i++) {
+            if(!hasRugged[groupId][group.members[i]]) {
+                remainingRounds++;
+            }
+        }
+        
+        if (!group.isPrivate) {
+            // Public: 0% immediate, 100% gradual
+            if (remainingRounds > 0) {
+                pendingInstallments[groupId][winner] = remainingRounds;
+                installmentAmount[groupId][winner] = amount / remainingRounds;
+            } else {
+                _safeTransfer(groupId, winner, amount);
+            }
+        } else {
+            // Private: 70% immediate, 30% gradual
+            uint256 immediateAmount = (amount * 70) / 100;
+            uint256 heldAmount = amount - immediateAmount;
+            
+            if (remainingRounds > 0) {
+                pendingInstallments[groupId][winner] = remainingRounds;
+                installmentAmount[groupId][winner] = heldAmount / remainingRounds;
+            } else {
+                immediateAmount = amount; 
+            }
+            _safeTransfer(groupId, winner, immediateAmount);
+        }
         
         group.currentTurnIndex++;
-        if (group.currentTurnIndex >= group.members.length) {
-            // Cycle complete
+        
+        // Check if all remaining are rugged
+        bool anyLeft = false;
+        for(uint i = group.currentTurnIndex; i < group.members.length; i++) {
+            if(!hasRugged[groupId][group.members[i]]) {
+                anyLeft = true;
+                break;
+            }
+        }
+        
+        if (!anyLeft) {
             group.isComplete = true;
         } else {
             group.currentRound++;
         }
+    }
+
+    function gradualRelease(uint256 groupId) internal {
+        Group storage group = groups[groupId];
+        for (uint i = 0; i < group.currentTurnIndex; i++) {
+            address pastWinner = group.members[i];
+            if (!hasRugged[groupId][pastWinner] && pendingInstallments[groupId][pastWinner] > 0) {
+                uint256 instAmount = installmentAmount[groupId][pastWinner];
+                pendingInstallments[groupId][pastWinner]--;
+                _safeTransfer(groupId, pastWinner, instAmount);
+            }
+        }
+    }
+
+    function _safeTransfer(uint256 groupId, address to, uint256 amount) internal {
+        if (amount > 0) {
+            require(usdcToken.transfer(to, amount), "Transfer failed");
+            emit PotDistributed(groupId, to, amount);
+        }
+    }
+
+    function _verifyMember(uint256 groupId, address account) internal view returns (bool) {
+        address[] memory m = groups[groupId].members;
+        for (uint i = 0; i < m.length; i++) {
+            if (m[i] == account) return true;
+        }
+        return false;
+    }
+
+    function slashInviter(uint256 groupId, address memberId) external {
+        require(_verifyMember(groupId, msg.sender), "Not a member");
+        Group storage group = groups[groupId];
+        require(group.isPrivate, "Only private groups");
+        require(!hasRugged[groupId][memberId], "Already rugged");
+        
+        hasRugged[groupId][memberId] = true;
+        
+        uint256 remaining = pendingInstallments[groupId][memberId] * installmentAmount[groupId][memberId];
+        pendingInstallments[groupId][memberId] = 0;
+        if (remaining > 0) group.potBalance += remaining;
+        
+        address inviter = inviterOf[groupId][memberId];
+        if (inviter != address(0) && inviter != memberId) {
+            uint256 inviterRemaining = pendingInstallments[groupId][inviter] * installmentAmount[groupId][inviter];
+            pendingInstallments[groupId][inviter] = 0;
+            if (inviterRemaining > 0) group.potBalance += inviterRemaining;
+        }
+    }
+    
+    function slashPublicMember(uint256 groupId, address memberId) external {
+        require(_verifyMember(groupId, msg.sender), "Not a member");
+        Group storage group = groups[groupId];
+        require(!group.isPrivate, "Only public groups");
+        require(!hasRugged[groupId][memberId], "Already rugged");
+        
+        hasRugged[groupId][memberId] = true;
+        
+        uint256 remaining = pendingInstallments[groupId][memberId] * installmentAmount[groupId][memberId];
+        pendingInstallments[groupId][memberId] = 0;
+        if (remaining > 0) group.potBalance += remaining;
     }
 
     function getGroup(uint256 groupId) external view returns (
