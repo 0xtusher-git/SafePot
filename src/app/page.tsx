@@ -5,6 +5,9 @@ import { useWeb3 } from "@/lib/Web3Context";
 import { ShieldCheck, Users, Coins, ArrowRight, Star, Lock, Zap } from "lucide-react";
 import CountUp from "react-countup";
 import { motion } from "framer-motion";
+import { useConnectModal } from "thirdweb/react";
+import { client, arcTestnet } from "@/lib/thirdwebClient";
+import { inAppWallet } from "thirdweb/wallets";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -13,6 +16,7 @@ const fadeUp = {
 
 export default function Home() {
   const { isConnected, connect, isTrusted } = useWeb3();
+  const connectModal = useConnectModal();
 
   return (
     <div className="flex-1 flex flex-col items-center w-full overflow-x-hidden">
@@ -48,16 +52,28 @@ export default function Home() {
             <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.5, delay: 0.3 }}
               className="flex flex-wrap gap-4 items-center">
               {!isConnected ? (
-                <>
-                  <button onClick={connect}
-                    className="group inline-flex items-center gap-2 px-8 py-4 font-bold text-white bg-forest rounded-full transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/20 text-lg">
-                    Connect Wallet <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform text-gold" />
+                <div className="flex flex-col gap-4 w-full md:w-auto">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <button onClick={connect}
+                      className="group inline-flex items-center gap-2 px-8 py-4 font-bold text-white bg-forest rounded-full transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/20 text-lg w-full md:w-auto justify-center">
+                      Connect with MetaMask <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform text-gold" />
+                    </button>
+                    <Link href="/browse"
+                      className="inline-flex items-center gap-2 px-6 py-4 font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-all text-base w-full md:w-auto justify-center">
+                      Browse Groups
+                    </Link>
+                  </div>
+                  <button onClick={async () => {
+                    await connectModal.connect({
+                      client,
+                      chain: arcTestnet,
+                      wallets: [inAppWallet({ auth: { options: ["email", "google"] } })],
+                    });
+                  }}
+                    className="group inline-flex items-center gap-2 px-8 py-3 font-bold text-gray-700 bg-white border-2 border-gray-200 rounded-full transition-all hover:border-forest hover:text-forest text-base w-full md:w-auto justify-center">
+                    Continue with Email or Google
                   </button>
-                  <Link href="/browse"
-                    className="inline-flex items-center gap-2 px-6 py-4 font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-all text-base">
-                    Browse Groups
-                  </Link>
-                </>
+                </div>
               ) : isTrusted ? (
                 <Link href="/dashboard"
                   className="group inline-flex items-center gap-2 px-8 py-4 font-bold text-forest bg-gold rounded-full transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-gold/30 text-lg">

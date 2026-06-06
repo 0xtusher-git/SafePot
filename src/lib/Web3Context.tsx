@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { BrowserProvider, Signer } from "ethers";
+import { BrowserProvider, JsonRpcProvider, Signer } from "ethers";
 import { getTrustScore } from "./arcGrade";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, CheckCircle2 } from "lucide-react";
@@ -14,12 +14,19 @@ interface Web3ContextType {
   connect: () => Promise<void>;
   changeWallet: () => Promise<void>;
   disconnect: () => void;
-  provider: BrowserProvider | null;
+  provider: BrowserProvider | JsonRpcProvider | null;
   signer: Signer | null;
   networkError: string | null;
   displayNames: Record<string, string>;
   setDisplayName: (address: string, name: string) => void;
+  loginMethod: "metamask" | "thirdweb" | null;
+  userEmail: string | null;
 }
+
+import { useActiveAccount, useActiveWallet, useActiveWalletChain, useDisconnect } from "thirdweb/react";
+import { ethers6Adapter } from "thirdweb/adapters/ethers6";
+import { getUserEmail } from "thirdweb/wallets/in-app";
+import { client } from "./thirdwebClient";
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
@@ -30,9 +37,20 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isTrusted, setIsTrusted] = useState(false);
   const [trustScore, setTrustScore] = useState<number | null>(null);
-  const [provider, setProvider] = useState<BrowserProvider | null>(null);
+  const [provider, setProvider] = useState<BrowserProvider | JsonRpcProvider | null>(null);
   const [signer, setSigner] = useState<Signer | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [loginMethod, setLoginMethod] = useState<"metamask" | "thirdweb" | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  const [mmAddress, setMmAddress] = useState<string | null>(null);
+  const [mmSigner, setMmSigner] = useState<Signer | null>(null);
+  const [mmProvider, setMmProvider] = useState<BrowserProvider | null>(null);
+
+  const thirdwebAccount = useActiveAccount();
+  const thirdwebWallet = useActiveWallet();
+  const thirdwebChain = useActiveWalletChain();
+  const { disconnect: disconnectThirdweb } = useDisconnect();
   
   const [displayNames, setDisplayNamesState] = useState<Record<string, string>>({});
   const [showNamePrompt, setShowNamePrompt] = useState(false);
@@ -63,7 +81,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       const p = new BrowserProvider((window as any).ethereum);
-      setProvider(p);
+      setMmProvider(p);
 
       (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
       (window as any).ethereum.on("chainChanged", handleChainChanged);
@@ -79,12 +97,18 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const handleAccountsChanged = async (accounts: string[]) => {
     if (accounts.length === 0) {
       disconnect();
-    } else if (accounts[0] !== address) {
+    } else if (accounts[0] !== mmAddress) {
       const newAddress = accounts[0];
-      setAddress(newAddress);
-      setIsConnected(true);
-      await fetchTrustData(newAddress);
-      checkNamePrompt(newAddress);
+      setMmAddress(newAddress);
+      
+      if (mmProvider) {
+        try {
+          const s = await mmProvider.getSigner();
+          setMmSigner(s);
+        } catch (e) {
+          console.error("Failed to get mm signer", e);
+        }
+      }
     }
   };
 
@@ -101,6 +125,53 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     window.location.reload();
   };
 
+  useEffect(() => {
+    let active = true;
+
+    if (thirdwebAccount && thirdwebChain) {
+      (async () => {
+        try {
+          const [s, email] = await Promise.all([
+            ethers6Adapter.signer.toEthers({ client, chain: thirdwebChain, account: thirdwebAccount }),
+            getUserEmail({ client }),
+          ]);
+          if (!active) return;
+          setAddress(thirdwebAccount.address);
+          setSigner(s as unknown as Signer);
+          setProvider(new JsonRpcProvider("https://rpc.testnet.arc.network"));
+          setIsConnected(true);
+          setLoginMethod("thirdweb");
+          setUserEmail(email ?? null);
+          fetchTrustData(thirdwebAccount.address);
+          checkNamePrompt(thirdwebAccount.address);
+        } catch (err) {
+          console.error("Failed to get Thirdweb signer", err);
+        }
+      })();
+    } else if (mmAddress && mmSigner) {
+      setAddress(mmAddress);
+      setSigner(mmSigner);
+      setProvider(mmProvider);
+      setIsConnected(true);
+      setLoginMethod("metamask");
+      fetchTrustData(mmAddress);
+      checkNamePrompt(mmAddress);
+    } else {
+      setAddress(null);
+      setSigner(null);
+      setProvider(mmProvider);
+      setIsConnected(false);
+      setLoginMethod(null);
+      setUserEmail(null);
+      setTrustScore(null);
+      setIsTrusted(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [thirdwebAccount, thirdwebChain, mmAddress, mmSigner, mmProvider]);
+
   const fetchTrustData = async (userAddress: string) => {
     const score = await getTrustScore(userAddress);
     setTrustScore(score);
@@ -108,13 +179,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   };
 
   const connect = async () => {
-    if (!provider) {
+    if (!mmProvider) {
       alert("Please install MetaMask!");
       return;
     }
     try {
       setNetworkError(null);
-      const network = await provider.getNetwork();
+      const network = await mmProvider.getNetwork();
       if (network.chainId !== BigInt(5042002)) {
         try {
           await (window as any).ethereum.request({
@@ -140,16 +211,12 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         }
       }
 
-      const accounts = await provider.send("eth_requestAccounts", []);
+      const accounts = await mmProvider.send("eth_requestAccounts", []);
       const userAddress = accounts[0];
-      const s = await provider.getSigner();
+      const s = await mmProvider.getSigner();
       
-      setAddress(userAddress);
-      setSigner(s);
-      setIsConnected(true);
-      
-      await fetchTrustData(userAddress);
-      checkNamePrompt(userAddress);
+      setMmAddress(userAddress);
+      setMmSigner(s);
 
     } catch (error) {
       console.error("Error connecting to wallet", error);
@@ -158,7 +225,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   };
 
   const changeWallet = async () => {
-    if (!provider) return;
+    if (!mmProvider) return;
     try {
       // Force the wallet account picker to appear
       await (window as any).ethereum.request({
@@ -166,15 +233,12 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         params: [{ eth_accounts: {} }],
       });
       // After user picks an account, fetch the newly selected one
-      const accounts = await provider.send("eth_accounts", []);
+      const accounts = await mmProvider.send("eth_accounts", []);
       if (accounts.length > 0) {
         const newAddress = accounts[0];
-        const s = await provider.getSigner();
-        setAddress(newAddress);
-        setSigner(s);
-        setIsConnected(true);
-        await fetchTrustData(newAddress);
-        checkNamePrompt(newAddress);
+        const s = await mmProvider.getSigner();
+        setMmAddress(newAddress);
+        setMmSigner(s);
       }
     } catch (error) {
       console.error("Change wallet cancelled or failed", error);
@@ -182,11 +246,18 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   };
 
   const disconnect = () => {
+    if (loginMethod === "thirdweb" && thirdwebWallet) {
+      disconnectThirdweb(thirdwebWallet);
+    }
+    setMmAddress(null);
+    setMmSigner(null);
     setAddress(null);
     setIsConnected(false);
     setSigner(null);
     setIsTrusted(false);
     setTrustScore(null);
+    setLoginMethod(null);
+    setUserEmail(null);
   };
 
   return (
@@ -204,6 +275,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         networkError,
         displayNames,
         setDisplayName,
+        loginMethod,
+        userEmail,
       }}
     >
       {children}

@@ -1,12 +1,14 @@
 "use client";
 
 import { useWeb3 } from "@/lib/Web3Context";
-import { ShieldCheck, History, Users, Timer, TrendingUp, AlertCircle, Gift, Loader2, Edit2, Check, X } from "lucide-react";
+import { ShieldCheck, History, Users, Timer, TrendingUp, AlertCircle, Gift, Loader2, Edit2, Check, X, Mail } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Contract, formatUnits, JsonRpcProvider } from "ethers";
+import { useWalletDetailsModal } from "thirdweb/react";
+import { client } from "@/lib/thirdwebClient";
 
 const SAFEPOT_ADDRESS = process.env.NEXT_PUBLIC_SAFEPOT_ADDRESS || "0x51716a253fF07910DE9ADB5eC25B757C451d763f";
 
@@ -47,7 +49,7 @@ type Activity = {
 };
 
 export default function Dashboard() {
-  const { isConnected, isTrusted, trustScore, address, provider, displayNames, setDisplayName } = useWeb3();
+  const { isConnected, isTrusted, trustScore, address, provider, displayNames, setDisplayName, loginMethod, userEmail } = useWeb3();
   const [mounted, setMounted] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -56,6 +58,7 @@ export default function Dashboard() {
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [totalSaved, setTotalSaved] = useState(0);
   const [loading, setLoading] = useState(true);
+  const detailsModal = useWalletDetailsModal();
 
   // Fallback timer just for UI aesthetic (can't determine exact on-chain deadline without block timestamps)
   const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 14, minutes: 30, seconds: 0 });
@@ -351,6 +354,38 @@ export default function Dashboard() {
               <h2 className="text-3xl font-extrabold text-gray-900">{activeGroups.filter(g => !g.isComplete).length}</h2>
             </motion.div>
           </div>
+        </div>
+
+        {/* My Wallet Section */}
+        <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">My Wallet</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-gray-500 font-medium text-sm">Address:</span>
+              <span className="font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded-md text-sm border border-gray-200">{address}</span>
+            </div>
+            {loginMethod === "thirdweb" && userEmail && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-gray-500 font-medium text-sm">Email:</span>
+                <span className="flex items-center gap-1.5 text-gray-700 font-semibold text-sm bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                  <Mail className="w-3.5 h-3.5 text-blue-500" />{userEmail}
+                </span>
+              </div>
+            )}
+            {loginMethod === "thirdweb" && (
+              <p className="text-xs text-red-500 font-bold flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Never share your private key with anyone.
+              </p>
+            )}
+          </div>
+          {loginMethod === "thirdweb" && (
+            <button
+              onClick={() => detailsModal.open({ client, screen: "export" })}
+              className="bg-gray-900 hover:bg-black text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-md text-sm"
+            >
+              Export Private Key
+            </button>
+          )}
         </div>
 
         {/* Active Groups Section */}
